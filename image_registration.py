@@ -53,34 +53,12 @@ def find_matches(descriptors1, descriptors2):
     return matches
 
 
-def create_matches_mask(matches):
-    """Creates a Mask to Distinguish Between Strong and Weak Matches Based on Lowe's Ratio Test"""
-    # For each pair of matches, check the distance between the first and second match,
-    # If the first is significantly better, mark it as a strong match.
-    matches_mask = [[1, 0] if m1.distance < 0.6 * m2.distance else [0, 0] for (m1, m2) in matches]
-    return matches_mask
-
-
 def get_strong_matches(matches):
     """Keeps Only the Strong Matches Based on Lowe's Ratio Test"""
     # For each pair of matches, check the distance between the first and second match,
     # If the first is significantly better, keep it.
     best_matches = [[match1] for match1, match2 in matches if match1.distance < 0.6 * match2.distance]
     return best_matches
-
-
-def display_matches(image1, keypoints1, image2, keypoints2, matches, match_color=(0, 255, 0), single_point_Color=(255, 0, 0), matches_mask=None):
-    """Displays Matched Keypoints Between Images"""
-    # Check whether a matches mask was provided as a parameter
-    if matches_mask:
-        # If a mask was provided, use the default flags to draw the matches
-        flags = cv2.DRAW_MATCHES_FLAGS_DEFAULT
-    else:
-        # If no mask was provided, do not draw single unmatched points
-        flags = cv2.DRAW_MATCHES_FLAGS_NOT_DRAW_SINGLE_POINTS
-
-    # Draw the matches between the keypoints of both images
-    matches_image = cv2.drawMatchesKnn(image1, keypoints1, image2, keypoints2, matches, None, match_color, single_point_Color, matches_mask, flags)
 
 
 def compute_homography(matches, keypoints1, keypoints2):
@@ -220,5 +198,6 @@ def register_images(base64_image1, base64_image2):
     base64_registered_image1 = encode_image(cropped_warped_image1)
     base64_registered_image2 = encode_image(cropped_image2)
 
-    return base64_registered_image1, base64_registered_image2
+    print(base64_registered_image1, base64_registered_image2)
+
     return base64_registered_image1, base64_registered_image2
