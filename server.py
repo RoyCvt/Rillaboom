@@ -25,7 +25,9 @@ def perform_registration():
 
         # Extract base64 encoded images from request data
         base64_image1 = data.get("base64Image1")
+        base64_image1.replace('data:image/jpeg;base64,', '') ###
         base64_image2 = data.get("base64Image2")
+        base64_image2.replace('data:image/jpeg;base64,', '') ###
 
         # Perform registration using a separate python script
         base64_registered_image1, base64_registered_image2 = register_images(base64_image1, base64_image2)

@@ -198,6 +198,4 @@ def register_images(base64_image1, base64_image2):
     base64_registered_image1 = encode_image(cropped_warped_image1)
     base64_registered_image2 = encode_image(cropped_image2)
 
-    print(base64_registered_image1, base64_registered_image2)
-
     return base64_registered_image1, base64_registered_image2
