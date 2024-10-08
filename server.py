@@ -5,8 +5,8 @@ from image_registration import register_images
 
 app = Flask(__name__)
 
-# Allow CORS only from localhost:1420
-CORS(app, resources={"/*": {"origins": "http://localhost:1420"}})
+# Allow CORS
+CORS(app)
 
 # Define the endpoints accessible to the client
 accessible_endpoints = ["index", "perform_registration"]
@@ -30,10 +30,16 @@ def perform_registration():
         base64_image2 = base64_image2.replace('data:image/jpeg;base64,', '') ###
 
         # Perform registration using a separate python script
-        base64_registered_image1, base64_registered_image2 = register_images(base64_image1, base64_image2)
-        base64_registered_image1 = 'data:image/jpeg;base64,' + base64_registered_image1 ###
-        base64_registered_image2 = 'data:image/jpeg;base64,' + base64_registered_image2 ###
-        return jsonify({"images": [base64_registered_image1, base64_registered_image2], "status": 200}), 200
+        registration_result = register_images(base64_image1, base64_image2)
+        registration_successful = registration_result[0]
+        if registration_successful:
+            base64_registered_image1, base64_registered_image2 = registration_result[1:]
+            base64_registered_image1 = 'data:image/jpeg;base64,' + base64_registered_image1 ###
+            base64_registered_image2 = 'data:image/jpeg;base64,' + base64_registered_image2 ###
+            return jsonify({"images": [base64_registered_image1, base64_registered_image2], "status": 200}), 200
+        else:
+            failure_reason, status_code = registration_result[1:]
+            return jsonify({"message": failure_reason, "status": status_code}), status_code 
 
     except Exception as e:
         return jsonify({"message": f"Internal Server Error: {e}", "status": 500}), 500
