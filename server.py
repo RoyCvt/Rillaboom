@@ -2,6 +2,8 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 
 from image_registration import register_images
+from time import perf_counter
+
 
 app = Flask(__name__)
 
@@ -30,7 +32,10 @@ def perform_registration():
         base64_image2 = base64_image2.replace('data:image/jpeg;base64,', '') ###
 
         # Perform registration using a separate python script
+        registration_timer = -perf_counter()
         registration_result = register_images(base64_image1, base64_image2)
+        registration_timer += perf_counter()
+        print(f'Registration time: {registration_timer} seconds')
         registration_successful = registration_result[0]
         if registration_successful:
             base64_registered_image1, base64_registered_image2 = registration_result[1:]
