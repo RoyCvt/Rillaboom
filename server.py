@@ -39,7 +39,7 @@ def perform_registration():
             return jsonify({"images": [base64_registered_image1, base64_registered_image2], "status": 200}), 200
         else:
             failure_reason, status_code = registration_result[1:]
-            return jsonify({"message": failure_reason, "status": status_code}), status_code 
+            return jsonify({"message": failure_reason, "status": status_code}), status_code
 
     except Exception as e:
         return jsonify({"message": f"Internal Server Error: {e}", "status": 500}), 500
