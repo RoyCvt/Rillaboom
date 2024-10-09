@@ -4,6 +4,7 @@ from io import BytesIO
 import cv2
 import numpy as np
 from PIL import Image
+import math
 
 
 def decode_image(base64_string):
@@ -113,34 +114,62 @@ def find_biggest_bounded_rect(image):
     image_gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
     # Create a binary mask of the image by setting all non-black pixels to 255, and black (padding) to 0
     _, image_mask = cv2.threshold(src=image_gray, thresh=0, maxval=255, type=cv2.THRESH_BINARY)
-    # Find the contours of the mask
-    contours, _ = cv2.findContours(image=image_mask, mode=cv2.RETR_EXTERNAL, method=cv2.CHAIN_APPROX_SIMPLE)
-    # Keep the biggest contour of the mask (if for some reason it has more than one contour)
-    biggest_contour = sorted(list(contours), key=cv2.contourArea, reverse=True)[0]
+    # Find the external contours of the mask (describing the areas of intersection between the images)
+    intersection_contours, _ = cv2.findContours(image=image_mask, mode=cv2.RETR_EXTERNAL, method=cv2.CHAIN_APPROX_SIMPLE)
+    # Keep the biggest external contour in the mask (if for some reason it has more than one contour)
+    intersection_contour = sorted(list(intersection_contours), key=cv2.contourArea, reverse=True)[0]
     # Refine the contour by getting rid of redundant points
-    biggest_contour = refine_contour(biggest_contour)
-    # Get rid of redundant dimensions in the array
-    biggest_contour = np.squeeze(biggest_contour)
-    # Find the centroid of the contour using moments
-    m = cv2.moments(biggest_contour)
-    cx = int(m["m10"] / m["m00"])  # x-coordinate of the contour's center
-    cy = int(m["m01"] / m["m00"])  # y-coordinate of the contour's center
-    # Separate the x and y values of the contour points
-    x_values = biggest_contour[:, 0]
-    y_values = biggest_contour[:, 1]
-    # Get the x-coordinate that is positioned left to the centroid's x (cx)
-    left = max(x for x in x_values if x < cx)
-    # Get the left-most x-coordinate that is positioned right to the centroid's x (cx)
-    right = min(x for x in x_values if x > cx)
-    # Get the down-most y-coordinate that is positioned above the centroid's y (cy)
-    top = max(y for y in y_values if y < cy)
-    # Get the up-most y-coordinate that is positioned below the centroid's y (cy)
-    bottom = min(y for y in y_values if y > cy)
-    # Construct the top-left point of the bounded rectangle
-    top_left = (left, top)
-    # Construct the bottom-right point of the bounded rectangle
-    bottom_right = (right, bottom)
-    return top_left, bottom_right
+    intersection_contour = refine_contour(intersection_contour)
+    # Get rid of redundant dimensions in the array describing the contour
+    intersection_contour = np.squeeze(intersection_contour)
+    # Find the centroid of the intersection area using moments
+    m = cv2.moments(intersection_contour)
+    cx = int(m["m10"] / m["m00"])
+    cy = int(m["m01"] / m["m00"])
+    intersection_centroid = (cx, cy)
+    # Get a rotation matrix that rotates the padded mask across its centroid by 1 degree counter-clockwise
+    rotation_matrix = np.array([[math.cos(math.radians(1)), -math.sin(math.radians(1))],
+                                [math.sin(math.radians(1)), math.cos(math.radians(1))]])
+    # Move the intersection contour so its centroid will be located at (0, 0)
+    centered_intersection_contour = intersection_contour - intersection_centroid
+    # The X and Y coordinates of the centroid after moving it to point (0, 0)
+    centered_cx = 0
+    centered_cy = 0
+    max_area = 0
+    best_angle = None
+    best_top_left = None
+    best_bottom_right = None
+    for angle in range(90):
+        # Separate the x and y values of the contour points
+        x_values = centered_intersection_contour[:, 0]
+        y_values = centered_intersection_contour[:, 1]
+        # Get the x-coordinate that is positioned left to the centroid's x coordinate (cx)
+        left = max(x for x in x_values if x < centered_cx)
+        # Get the left-most x-coordinate that is positioned right to the centroid's x coordinate (cx)
+        right = min(x for x in x_values if x > centered_cx)
+        # Get the down-most y-coordinate that is positioned above the centroid's y coordinate (cy)
+        top = max(y for y in y_values if y < centered_cy)
+        # Get the up-most y-coordinate that is positioned below the centroid's y coordinate (cy)
+        bottom = min(y for y in y_values if y > centered_cy)
+        # Calculate the area of the biggest bound rectangle at the current rotation angle
+        area = (right - left) * (bottom - top)
+
+        # Check if the area of the current rect is greater than that of the best rect found
+        if area > max_area:
+            max_area = area
+            best_angle = angle
+            # Bring the coordinates of the rectangle from being with respect to the centroid back to being with respect to the top-left of the image
+            abs_top = math.ceil(top + cy)
+            abs_left = math.ceil(left + cx)
+            abs_bottom = math.floor(bottom + cy)
+            abs_right = math.floor(right + cx)
+            best_top_left = (abs_left, abs_top)
+            best_bottom_right = (abs_right, abs_bottom)
+
+        # Rotate the centered intersection contour across the (0, 0) point (which is its centroid)
+        centered_intersection_contour = np.dot(centered_intersection_contour, rotation_matrix)
+
+    return best_top_left, best_bottom_right, best_angle, intersection_centroid
 
 
 def register_images(base64_image1, base64_image2):
@@ -157,35 +186,35 @@ def register_images(base64_image1, base64_image2):
                 (False, failure reason, status code)
     """
     if not isinstance(base64_image1, str) or not isinstance(base64_image2, str):
-        return (False, 'Bad input', 400)
+        return (False, "Bad input", 400)
 
     action = ""
     try:
         # Decode the images from base64 strings to numpy arrays
-        action = 'decoding the images from base64 strings to numpy arrays'
+        action = "decoding the images from base64 strings to numpy arrays"
         image1 = decode_image(base64_image1)
         image2 = decode_image(base64_image2)
 
         # Get the dimensions of the images
-        action = 'getting the height and width of the images'
+        action = "getting the height and width of the images"
         image1_height, image1_width = image1.shape[:2]
         image2_height, image2_width = image2.shape[:2]
 
         # Set scaling factors for downscaling the images to improve performance
         # Ensures that images are downscaled as much as possible while keeping their smaller dimension above 1000
-        action = 'calculating the optimal scaling factor for each of the images'
+        action = "calculating the optimal scaling factor for each of the images"
         scaling_factor1 = min(image1_height, image1_width) / 1000 if min(image1_height, image1_width) > 1000 else 1
         scaling_factor2 = min(image2_height, image2_width) / 1000 if min(image2_height, image2_width) > 1000 else 1
 
         # Calculate the new dimensions for both images based on their scaling factors
-        action = 'calculating the width and height of the downscaled versions of the images'
+        action = "calculating the width and height of the downscaled versions of the images"
         downscaled_image1_width = int(image1_width / scaling_factor1)
         downscaled_image1_height = int(image1_height / scaling_factor1)
         downscaled_image2_width = int(image2_width / scaling_factor2)
         downscaled_image2_height = int(image2_height / scaling_factor2)
 
         # Downscale the images to make feature extraction and feature matching faster and reduce memory usage
-        action = 'downscaling the images'
+        action = "downscaling the images"
         downscaled_image1 = cv2.resize(image1, (downscaled_image1_width, downscaled_image1_height))
         downscaled_image2 = cv2.resize(image2, (downscaled_image2_width, downscaled_image2_height))
 
@@ -217,12 +246,39 @@ def register_images(base64_image1, base64_image2):
 
         # Find the biggest rectangular region in the warped first image that doesn't contain any padding (black areas)
         action = "finding the largest area without padding in the first image"
-        top_left, bottom_right = find_biggest_bounded_rect(warped_image1)
+        top_left, bottom_right, angle, centroid = find_biggest_bounded_rect(warped_image1)
+
+        # Get the shape of the warped first image (same as that of the second image)
+        action = "getting the shape of the warped first image"
+        warped_image1_height, warped_image1_width = warped_image1.shape[:2]
+
+        # Calculate the padding needed so the biggest bounded rect will be contained by the image after the rotation
+        action = "calculating the padding required to keep the max bounded rect inside the image after rotation"
+        top_pad = -top_left[1] if top_left[1] < 0 else 0
+        left_pad = -top_left[0] if top_left[0] < 0 else 0
+        bottom_pad = bottom_right[1] - warped_image1_height if bottom_right[1] > warped_image1_height else 0
+        right_pad = bottom_right[0] - warped_image1_width if bottom_right[0] > warped_image1_width else 0
+
+        # Pad the images
+        action = "padding the images"
+        padded_warped_image1 = cv2.copyMakeBorder(warped_image1, top_pad, bottom_pad, left_pad, right_pad, cv2.BORDER_CONSTANT)
+        padded_image2 = cv2.copyMakeBorder(image2, top_pad, bottom_pad, left_pad, right_pad, cv2.BORDER_CONSTANT)
+
+        # Adjust the location of the centroid to account for the fact that the padding moved the intersection area
+        action = "adjusting the location of the centroid to the padded images"
+        padded_centroid = (left_pad + centroid[0], top_pad + centroid[1])
+
+        # Rotate the images so biggest bounded rect will be parallel to the axes and can be cropped
+        action = "getting the rotation matrix that makes the largest bounded rect parallel to the axes"
+        rotation_matrix = cv2.getRotationMatrix2D(padded_centroid, angle, 1.0)
+        action = "rotating the images to make the largest bounded rect parallel to the axes"
+        rotated_warped_image1 = cv2.warpAffine(padded_warped_image1, rotation_matrix, (padded_warped_image1.shape[1], padded_warped_image1.shape[0]))
+        rotated_image2 = cv2.warpAffine(padded_image2, rotation_matrix, (padded_image2.shape[1], padded_image2.shape[0]))
 
         # Crop the common region between the two images to prepare for overlay
         action = "cropping the images in the same places so they become registered and without padding"
-        cropped_warped_image1 = warped_image1[top_left[1] : bottom_right[1], top_left[0] : bottom_right[0]]
-        cropped_image2 = image2[top_left[1] : bottom_right[1], top_left[0] : bottom_right[0]]
+        cropped_warped_image1 = rotated_warped_image1[top_left[1] : bottom_right[1], top_left[0] : bottom_right[0]]
+        cropped_image2 = rotated_image2[top_left[1] : bottom_right[1], top_left[0] : bottom_right[0]]
 
         # Encode the images to base64
         action = "encoding the registration images from numpy arrays to base64 strings"
