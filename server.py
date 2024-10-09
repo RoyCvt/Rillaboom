@@ -25,17 +25,13 @@ def perform_registration():
 
         # Extract base64 encoded images from request data
         base64_image1 = data.get("base64Image1")
-        base64_image1 = base64_image1.replace('data:image/jpeg;base64,', '') ###
         base64_image2 = data.get("base64Image2")
-        base64_image2 = base64_image2.replace('data:image/jpeg;base64,', '') ###
 
         # Perform registration using a separate python script
         registration_result = register_images(base64_image1, base64_image2)
         registration_successful = registration_result[0]
         if registration_successful:
             base64_registered_image1, base64_registered_image2 = registration_result[1:]
-            base64_registered_image1 = 'data:image/jpeg;base64,' + base64_registered_image1 ###
-            base64_registered_image2 = 'data:image/jpeg;base64,' + base64_registered_image2 ###
             return jsonify({"images": [base64_registered_image1, base64_registered_image2], "status": 200}), 200
         else:
             failure_reason, status_code = registration_result[1:]
