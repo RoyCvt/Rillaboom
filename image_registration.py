@@ -248,6 +248,13 @@ def register_images(base64_image1, base64_image2):
         action = "finding the largest area without padding in the first image"
         top_left, bottom_right, angle, centroid = find_biggest_bounded_rect(warped_image1)
 
+        # Check if the smallest dimension of the rectangular region is smaller than 500 pixels
+        action = "checking if either the height or width of the are common to both images is smaller than 500"
+        region_width = bottom_right[0] - top_left[0]
+        region_height = bottom_right[1] - top_left[1]
+        if region_width < 500 or region_height < 500:
+            return (False, "The area of intersection between the images is too small", 500)
+
         # Get the shape of the warped first image (same as that of the second image)
         action = "getting the shape of the warped first image"
         warped_image1_height, warped_image1_width = warped_image1.shape[:2]
