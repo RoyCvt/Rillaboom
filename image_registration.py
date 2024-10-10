@@ -186,113 +186,113 @@ def register_images(base64_image1, base64_image2):
                 (False, failure reason, status code)
     """
     if not isinstance(base64_image1, str) or not isinstance(base64_image2, str):
-        return (False, "Bad input", 400)
+        return (False, "קלט אינו תקין!", 400)
 
     action = ""
     try:
         # Decode the images from base64 strings to numpy arrays
-        action = "decoding the images from base64 strings to numpy arrays"
+        action = "שינוי פורמט התמונות שהתקבלו"
         image1 = decode_image(base64_image1)
         image2 = decode_image(base64_image2)
 
         # Get the dimensions of the images
-        action = "getting the height and width of the images"
+        action = "קבלת אורך ורוחב התמונות"
         image1_height, image1_width = image1.shape[:2]
         image2_height, image2_width = image2.shape[:2]
 
         # Set scaling factors for downscaling the images to improve performance
         # Ensures that images are downscaled as much as possible while keeping their smaller dimension above 1000
-        action = "calculating the optimal scaling factor for each of the images"
+        action = "חישוב מקדם הקטנה מיטבי לכל תמונה"
         scaling_factor1 = min(image1_height, image1_width) / 1000 if min(image1_height, image1_width) > 1000 else 1
         scaling_factor2 = min(image2_height, image2_width) / 1000 if min(image2_height, image2_width) > 1000 else 1
 
         # Calculate the new dimensions for both images based on their scaling factors
-        action = "calculating the width and height of the downscaled versions of the images"
+        action = "חישוב אורך ורוחב הגרסאות המוקטנות של התמונות"
         downscaled_image1_width = int(image1_width / scaling_factor1)
         downscaled_image1_height = int(image1_height / scaling_factor1)
         downscaled_image2_width = int(image2_width / scaling_factor2)
         downscaled_image2_height = int(image2_height / scaling_factor2)
 
         # Downscale the images to make feature extraction and feature matching faster and reduce memory usage
-        action = "downscaling the images"
+        action = "הקטנת התמונות"
         downscaled_image1 = cv2.resize(image1, (downscaled_image1_width, downscaled_image1_height))
         downscaled_image2 = cv2.resize(image2, (downscaled_image2_width, downscaled_image2_height))
 
         # Extract keypoints and descriptors from the downscaled images
-        action = "extracting keypoints and descriptors from the images"
+        action = "חילוץ נקודות חשובות מהתמונות"
         downscaled_keypoints1, downscaled_descriptors1 = extract_keypoints_and_descriptors(downscaled_image1)
         downscaled_keypoints2, downscaled_descriptors2 = extract_keypoints_and_descriptors(downscaled_image2)
 
         # Find matches between the descriptors of the downscaled images using FLANN
-        action = "searching for matches between the images"
+        action = "חיפוש התאמות בין התמונות"
         matches = find_matches(downscaled_descriptors1, downscaled_descriptors2)
 
         # Get the strong matches based on Lowe's ratio test
-        action = "removing weak matches"
+        action = "הסרת התאמות חלשות"
         strong_matches = get_strong_matches(matches)
 
         # Upscale the keypoints' coordinates back to match the original image sizes
-        action = "upsacling the coordinates of the matches' keypoints"
+        action = "הגדלת הקואורדינטות של הנקודות ביניהן ישנן התאמות"
         keypoints1 = [cv2.KeyPoint(scaling_factor1 * keypoint.pt[0], scaling_factor1 * keypoint.pt[1], 1) for keypoint in downscaled_keypoints1]
         keypoints2 = [cv2.KeyPoint(scaling_factor2 * keypoint.pt[0], scaling_factor2 * keypoint.pt[1], 1) for keypoint in downscaled_keypoints2]
 
         # Compute the homography matrix that aligns the first image to the second image's perspective
-        action = "computing the homography matrix"
+        action = "חישוב מטריצת ההמרה בין פרספקטיבות"
         homography_matrix = compute_homography(strong_matches, keypoints1, keypoints2)
 
         # Warp the first image using the computed homography to match the second image's perspective
-        action = "warping the perspective of the first image based on the homography matrix"
+        action = "עיוות התמונות באמצעות מטריצת ההמרה"
         warped_image1 = cv2.warpPerspective(image1, homography_matrix, (image2_width, image2_height))
 
         # Find the biggest rectangular region in the warped first image that doesn't contain any padding (black areas)
-        action = "finding the largest area without padding in the first image"
+        action = "חיפוש אזור החפיפה בין התמונות"
         top_left, bottom_right, angle, centroid = find_biggest_bounded_rect(warped_image1)
 
         # Check if the smallest dimension of the rectangular region is smaller than 500 pixels
-        action = "checking if either the height or width of the are common to both images is smaller than 500"
+        action = "וידוא כי נמצאה חפיפה מספיקה בין התמונות"
         region_width = bottom_right[0] - top_left[0]
         region_height = bottom_right[1] - top_left[1]
         if region_width < 500 or region_height < 500:
-            return (False, "The area of intersection between the images is too small", 500)
+            return (False, "אין חפיפה בין התמונות שנבחרו!", 500)
 
         # Get the shape of the warped first image (same as that of the second image)
-        action = "getting the shape of the warped first image"
+        action = "קבלת אורך ורוחב התמונה המעוותת"
         warped_image1_height, warped_image1_width = warped_image1.shape[:2]
 
         # Calculate the padding needed so the biggest bounded rect will be contained by the image after the rotation
-        action = "calculating the padding required to keep the max bounded rect inside the image after rotation"
+        action = "חישוב הריפוד הדרוש על מנת לא לאבד מידע בסיבוב התמונה"
         top_pad = -top_left[1] if top_left[1] < 0 else 0
         left_pad = -top_left[0] if top_left[0] < 0 else 0
         bottom_pad = bottom_right[1] - warped_image1_height if bottom_right[1] > warped_image1_height else 0
         right_pad = bottom_right[0] - warped_image1_width if bottom_right[0] > warped_image1_width else 0
 
         # Pad the images
-        action = "padding the images"
+        action = "ריפוד התמונות"
         padded_warped_image1 = cv2.copyMakeBorder(warped_image1, top_pad, bottom_pad, left_pad, right_pad, cv2.BORDER_CONSTANT)
         padded_image2 = cv2.copyMakeBorder(image2, top_pad, bottom_pad, left_pad, right_pad, cv2.BORDER_CONSTANT)
 
         # Adjust the location of the centroid to account for the fact that the padding moved the intersection area
-        action = "adjusting the location of the centroid to the padded images"
+        action = "שינוי מיקום מרכז הכובד של השטח המשותף בין התמונות"
         padded_centroid = (left_pad + centroid[0], top_pad + centroid[1])
 
         # Rotate the images so biggest bounded rect will be parallel to the axes and can be cropped
-        action = "getting the rotation matrix that makes the largest bounded rect parallel to the axes"
+        action = "חישוב מטריצת הסיבוב שתביא את השטח המשותף בין התמונות להיות מקביל לגבולות התמונה"
         rotation_matrix = cv2.getRotationMatrix2D(padded_centroid, angle, 1.0)
-        action = "rotating the images to make the largest bounded rect parallel to the axes"
+        action = "סיבוב התמונות מטריצת הסיבוב"
         rotated_warped_image1 = cv2.warpAffine(padded_warped_image1, rotation_matrix, (padded_warped_image1.shape[1], padded_warped_image1.shape[0]))
         rotated_image2 = cv2.warpAffine(padded_image2, rotation_matrix, (padded_image2.shape[1], padded_image2.shape[0]))
 
         # Crop the common region between the two images to prepare for overlay
-        action = "cropping the images in the same places so they become registered and without padding"
+        action = "חיתוך התמונות על מנת ליישר אותן אחת ביחס לשנייה"
         cropped_warped_image1 = rotated_warped_image1[top_left[1] : bottom_right[1], top_left[0] : bottom_right[0]]
         cropped_image2 = rotated_image2[top_left[1] : bottom_right[1], top_left[0] : bottom_right[0]]
 
         # Encode the images to base64
-        action = "encoding the registration images from numpy arrays to base64 strings"
+        action = "שינוי פורמט התמונות המיושרות"
         base64_registered_image1 = encode_image(cropped_warped_image1)
         base64_registered_image2 = encode_image(cropped_image2)
 
         return (True, base64_registered_image1, base64_registered_image2)
 
     except Exception:
-        return (False, f"Encountered unexpected error while {action}", 500)
+        return (False, f"התרחשה שגיאה בלתי צפויה במהלך {action}", 500)
