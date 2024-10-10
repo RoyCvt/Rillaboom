@@ -231,6 +231,11 @@ def register_images(base64_image1, base64_image2):
         action = "הסרת התאמות חלשות"
         strong_matches = get_strong_matches(matches)
 
+        # Check if the amount of strong matches between the images is below a certain threshold
+        action = "בדיקת כמות ההתאמות הטובות בין התמונות"
+        if len(strong_matches) < 10:
+            return (False, "אין חפיפה בין התמונות שנבחרו!", 500)
+
         # Upscale the keypoints' coordinates back to match the original image sizes
         action = "הגדלת הקואורדינטות של הנקודות ביניהן ישנן התאמות"
         keypoints1 = [cv2.KeyPoint(scaling_factor1 * keypoint.pt[0], scaling_factor1 * keypoint.pt[1], 1) for keypoint in downscaled_keypoints1]
