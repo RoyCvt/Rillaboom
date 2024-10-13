@@ -1,3 +1,5 @@
+#Steps to configure Rillaboom on an android tablet:#
+
 1) Install the "Termux" app from the Play Store.
 2) Install the "Andronix" app from the Play Store.
 3) Open the app and select "Liux Distribution".
