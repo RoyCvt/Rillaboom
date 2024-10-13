@@ -1,0 +1,35 @@
+#Steps to configure Rillaboom on an android tablet:#
+
+1) Install the "Termux" app from the Play Store.
+2) Install the "Andronix" app from the Play Store.
+3) Open the app and select "Liux Distribution".
+4) In the "Distro Selection" window choose Ubuntu and select version 20.04.
+5) In the "GUI Selection" window choose "Desktop Environment" and then the "XFCE" environment.
+6) Open the "Termux" app and paste the command that was automatically copied to your clipboard (if the command wasn't copied click the "Recopy Command" button in "Andronix").
+7) A system window will open listing apps with "Access all Files" permission. choose "Termux" from the list and tap on the toggle switch to give the permission.
+8) Close the permissions window to go back to the "Termux" terminal screen and input the following to configure the new ubuntu os:
+    8.1) for the Geographic area, type "6" for Asia and press enter.
+    8.2) for the Time zone, type "37" for Jerusalem and press enter.
+    8.3) for the Keyboard country of origin, first click enter a couple of times to show all options. then type "31" for English (US) and press enter.
+    8.4) for the Keyboard layout, type "1" for English (US) and press enter.
+9) Choose a new password for the "VNC Server" and then re-enter it for verification. we recommend "123456" for simplicity.
+10) You will be asked if you want to enter a view-only password. type "n" and press enter.
+11) Install Git:
+    # sudo apt install git
+    * When asked if you want to continue type "Y" and press enter.
+12) Download the project to the Documents folder:
+    # cd Documents
+    # git clone https://github.com/RoyCvt/Rillaboom.git
+    # cd Rillaboom
+13) Install pip:
+    # sudo apt install python3-pip
+    * When asked if you want to continue type "Y" and press enter.
+14) Instll venv:
+    # sudo apt install python3.8-venv
+15) Create a virtual environment with the required dependencies:
+    # python3 -m venv rillaboom-env
+    # sudo chmod -x rillaboom-env/bin/activate
+    # source rillaboom-env/bin/activate
+16) Install the required dependencies:
+    # pip install -r requirements.txt
+
