@@ -30,7 +30,7 @@
 > sudo apt install git
    
 > [!NOTE]
-> When asked if you want to continue type "Y" and press enter.  
+> When asked if you want to continue type **Y** and press enter.  
 
 12) Download the project to the Documents folder:
 > cd Documents  
@@ -41,7 +41,7 @@
 > sudo apt install python3-pip  
 
 > [!NOTE]
-> When asked if you want to continue type "Y" and press enter.  
+> When asked if you want to continue type **Y** and press enter.  
    
 14) Install venv:
 > sudo apt install python3.8-venv  
