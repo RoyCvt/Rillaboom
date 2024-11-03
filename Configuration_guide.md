@@ -14,7 +14,7 @@
 > [!NOTE]
 > If the command wasn't copied, go back to **Andronix** and click on the **Recopy Command** button before pasting in **Termux**.
 
-7) A system window will open listing apps with **Access all Files** permission. choose **Termux** from the list and tap on the toggle switch to give the permission.
+7) A system window will open listing apps with "All files access" permission. choose **Termux** from the list and tap on the toggle switch to give the permission.
 
 8) Close the permissions window to go back to the **Termux** terminal screen and procceed to cofiguring the time zone and keyboard settings:
 - for the **Geographic area**, type **6** for **Asia** and press enter.
