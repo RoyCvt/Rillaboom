@@ -1,10 +1,10 @@
 # Steps to configure Rillaboom on an android tablet:
 
-1) Install the **Termux** app from the Play Store.
+1) Install the **Andronix** app from the Play Store.
 
-2) Install the **Andronix** app from the Play Store.
+2) Install the **Termux** app from the Play Store.
 
-3) Open the app and select **Linux Distribution**.
+3) Open the **Andronix** app and select **Linux Distribution**.
 
 4) In the **Distro Selection** window choose **Ubuntu** and select version **20.04**.
 
