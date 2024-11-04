@@ -32,25 +32,19 @@ def encode_image(np_image):
 
 def extract_keypoints_and_descriptors(image):
     """Extracts Keypoints and Descriptors from Image"""
-    # Convert the color-space of the image from RGB to Grayscale
-    image_gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
     # Create the SIFT feature detector
     sift = cv2.SIFT_create()
     # Detect keypoints of important features and compute descriptors
-    keypoints, descriptors = sift.detectAndCompute(image_gray, None)
+    keypoints, descriptors = sift.detectAndCompute(image, None)
     return keypoints, descriptors
 
 
 def find_matches(descriptors1, descriptors2):
-    """Finds Matches Between Descriptors of Images Using FLANN"""
-    # Configure the parameters of the FLANN feature matcher
-    FLANN_INDEX_KDTREE = 0
-    index_params = {"algorithm": FLANN_INDEX_KDTREE, "trees": 5}
-    search_params = {"checks": 50}
-    # Create the FLANN feature matcher
-    flann_matcher = cv2.FlannBasedMatcher(index_params, search_params)
+    """Finds Matches Between Descriptors of Images Using Brute Force Matching"""
+    # Create the Brute Force feature matcher
+    bf_matcher = cv2.BFMatcher()
     # Find matches between the descriptors of the two images
-    matches = flann_matcher.knnMatch(descriptors1, descriptors2, k=2)
+    matches = bf_matcher.knnMatch(descriptors1, descriptors2, k=2)
     return matches
 
 
@@ -200,40 +194,47 @@ def register_images(base64_image1, base64_image2):
         image1_height, image1_width = image1.shape[:2]
         image2_height, image2_width = image2.shape[:2]
 
-        # Set scaling factors for downscaling the images to improve performance
-        # Ensures that images are downscaled as much as possible while keeping their smaller dimension above 1000
-        action = "חישוב מקדם הקטנה מיטבי לכל תמונה"
-        scaling_factor1 = min(image1_height, image1_width) / 1000 if min(image1_height, image1_width) > 1000 else 1
-        scaling_factor2 = min(image2_height, image2_width) / 1000 if min(image2_height, image2_width) > 1000 else 1
+        for min_size in range(200, 1001, 200):
+            # Set scaling factors for downscaling the images to improve performance
+            # Ensures that images are downscaled as much as possible while keeping their smaller dimension above a minimum size
+            action = "חישוב מקדם הקטנה מיטבי לכל תמונה"
+            scaling_factor1 = min(image1_height, image1_width) / min_size if min(image1_height, image1_width) > min_size else 1
+            scaling_factor2 = min(image2_height, image2_width) / min_size if min(image2_height, image2_width) > min_size else 1
 
-        # Calculate the new dimensions for both images based on their scaling factors
-        action = "חישוב אורך ורוחב הגרסאות המוקטנות של התמונות"
-        downscaled_image1_width = int(image1_width / scaling_factor1)
-        downscaled_image1_height = int(image1_height / scaling_factor1)
-        downscaled_image2_width = int(image2_width / scaling_factor2)
-        downscaled_image2_height = int(image2_height / scaling_factor2)
+            # Calculate the new dimensions for both images based on their scaling factors
+            action = "חישוב אורך ורוחב הגרסאות המוקטנות של התמונות"
+            downscaled_image1_width = int(image1_width / scaling_factor1)
+            downscaled_image1_height = int(image1_height / scaling_factor1)
+            downscaled_image2_width = int(image2_width / scaling_factor2)
+            downscaled_image2_height = int(image2_height / scaling_factor2)
 
-        # Downscale the images to make feature extraction and feature matching faster and reduce memory usage
-        action = "הקטנת התמונות"
-        downscaled_image1 = cv2.resize(image1, (downscaled_image1_width, downscaled_image1_height))
-        downscaled_image2 = cv2.resize(image2, (downscaled_image2_width, downscaled_image2_height))
+            # Downscale the images to make feature extraction and feature matching faster and reduce memory usage
+            action = "הקטנת התמונות"
+            downscaled_image1 = cv2.resize(image1, (downscaled_image1_width, downscaled_image1_height))
+            downscaled_image2 = cv2.resize(image2, (downscaled_image2_width, downscaled_image2_height))
 
-        # Extract keypoints and descriptors from the downscaled images
-        action = "חילוץ נקודות חשובות מהתמונות"
-        downscaled_keypoints1, downscaled_descriptors1 = extract_keypoints_and_descriptors(downscaled_image1)
-        downscaled_keypoints2, downscaled_descriptors2 = extract_keypoints_and_descriptors(downscaled_image2)
+            # Extract keypoints and descriptors from the downscaled images
+            action = "חילוץ נקודות חשובות מהתמונות"
+            downscaled_keypoints1, downscaled_descriptors1 = extract_keypoints_and_descriptors(downscaled_image1)
+            downscaled_keypoints2, downscaled_descriptors2 = extract_keypoints_and_descriptors(downscaled_image2)
 
-        # Find matches between the descriptors of the downscaled images using FLANN
-        action = "חיפוש התאמות בין התמונות"
-        matches = find_matches(downscaled_descriptors1, downscaled_descriptors2)
+            # Find matches between the descriptors of the downscaled images using brute force
+            action = "חיפוש התאמות בין התמונות"
+            matches = find_matches(downscaled_descriptors1, downscaled_descriptors2)
 
-        # Get the strong matches based on Lowe's ratio test
-        action = "הסרת התאמות חלשות"
-        strong_matches = get_strong_matches(matches)
+            # Get the strong matches based on Lowe's ratio test
+            action = "הסרת התאמות חלשות"
+            strong_matches = get_strong_matches(matches)
 
-        # Check if the amount of strong matches between the images is below a certain threshold
+            # Check if the amount of strong matches between the images is enough for good registration
+            action = "בדיקת כמות ההתאמות הטובות בין התמונות"
+            if len(strong_matches) >= 25:
+                # No need to increase the image sizes for more strong matches
+                break
+
+        # Check if the amount of strong matches between the images is not enough for good registration
         action = "בדיקת כמות ההתאמות הטובות בין התמונות"
-        if len(strong_matches) < 10:
+        if len(strong_matches) < 25:
             return (False, "אין חפיפה בין התמונות שנבחרו!", 500)
 
         # Upscale the keypoints' coordinates back to match the original image sizes
