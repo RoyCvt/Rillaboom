@@ -40,15 +40,11 @@ def extract_keypoints_and_descriptors(image):
 
 
 def find_matches(descriptors1, descriptors2):
-    """Finds Matches Between Descriptors of Images Using FLANN"""
-    # Configure the parameters of the FLANN feature matcher
-    FLANN_INDEX_KDTREE = 0
-    index_params = {"algorithm": FLANN_INDEX_KDTREE, "trees": 5}
-    search_params = {"checks": 50}
-    # Create the FLANN feature matcher
-    flann_matcher = cv2.FlannBasedMatcher(index_params, search_params)
+    """Finds Matches Between Descriptors of Images Using Brute Force Matching"""
+    # Create the Brute Force feature matcher
+    bf_matcher = cv2.BFMatcher()
     # Find matches between the descriptors of the two images
-    matches = flann_matcher.knnMatch(descriptors1, descriptors2, k=2)
+    matches = bf_matcher.knnMatch(descriptors1, descriptors2, k=2)
     return matches
 
 
@@ -222,7 +218,7 @@ def register_images(base64_image1, base64_image2):
             downscaled_keypoints1, downscaled_descriptors1 = extract_keypoints_and_descriptors(downscaled_image1)
             downscaled_keypoints2, downscaled_descriptors2 = extract_keypoints_and_descriptors(downscaled_image2)
 
-            # Find matches between the descriptors of the downscaled images using FLANN
+            # Find matches between the descriptors of the downscaled images using brute force
             action = "חיפוש התאמות בין התמונות"
             matches = find_matches(downscaled_descriptors1, downscaled_descriptors2)
 
