@@ -1,10 +1,11 @@
 import base64
+import math
 from io import BytesIO
 
 import cv2
+import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
-import math
 
 
 def decode_image(base64_string):
@@ -254,13 +255,6 @@ def register_images(base64_image1, base64_image2):
         action = "חיפוש אזור החפיפה בין התמונות"
         top_left, bottom_right, angle, centroid = find_biggest_bounded_rect(warped_image1)
 
-        # Check if the smallest dimension of the rectangular region is smaller than 500 pixels
-        action = "וידוא כי נמצאה חפיפה מספיקה בין התמונות"
-        region_width = bottom_right[0] - top_left[0]
-        region_height = bottom_right[1] - top_left[1]
-        if region_width < 500 or region_height < 500:
-            return (False, "אין חפיפה בין התמונות שנבחרו!", 500)
-
         # Get the shape of the warped first image (same as that of the second image)
         action = "קבלת אורך ורוחב התמונה המעוותת"
         warped_image1_height, warped_image1_width = warped_image1.shape[:2]
@@ -277,13 +271,18 @@ def register_images(base64_image1, base64_image2):
         padded_warped_image1 = cv2.copyMakeBorder(warped_image1, top_pad, bottom_pad, left_pad, right_pad, cv2.BORDER_CONSTANT)
         padded_image2 = cv2.copyMakeBorder(image2, top_pad, bottom_pad, left_pad, right_pad, cv2.BORDER_CONSTANT)
 
+        # Adjust the location of the bounded rect's top-left and bottom-right points to account for the fact that the padding moved the intersection area
+        action = "שינוי מיקום קדקודי המלבן שתחום על ידי השטח המשותף בין התמונות"
+        top_left = (left_pad + top_left[0], top_pad + top_left[1])
+        bottom_right = (left_pad + bottom_right[0], top_pad + bottom_right[1])
+
         # Adjust the location of the centroid to account for the fact that the padding moved the intersection area
         action = "שינוי מיקום מרכז הכובד של השטח המשותף בין התמונות"
-        padded_centroid = (left_pad + centroid[0], top_pad + centroid[1])
+        centroid = (left_pad + centroid[0], top_pad + centroid[1])
 
         # Rotate the images so biggest bounded rect will be parallel to the axes and can be cropped
         action = "חישוב מטריצת הסיבוב שתביא את השטח המשותף בין התמונות להיות מקביל לגבולות התמונה"
-        rotation_matrix = cv2.getRotationMatrix2D(padded_centroid, angle, 1.0)
+        rotation_matrix = cv2.getRotationMatrix2D(centroid, angle, 1.0)
         action = "סיבוב התמונות מטריצת הסיבוב"
         rotated_warped_image1 = cv2.warpAffine(padded_warped_image1, rotation_matrix, (padded_warped_image1.shape[1], padded_warped_image1.shape[0]))
         rotated_image2 = cv2.warpAffine(padded_image2, rotation_matrix, (padded_image2.shape[1], padded_image2.shape[0]))
@@ -302,3 +301,39 @@ def register_images(base64_image1, base64_image2):
 
     except Exception:
         return (False, f"התרחשה שגיאה בלתי צפויה במהלך {action}", 500)
+
+
+def main():
+    image1 = plt.imread("images/1.jpg")
+    image2 = plt.imread("images/2.jpg")
+
+    encoded_image1 = encode_image(image1)
+    encoded_image2 = encode_image(image2)
+
+    registration_result = register_images(encoded_image1, encoded_image2)
+
+    is_registration_successful = registration_result[0]
+
+    if is_registration_successful:
+        base64_registered_image1 = registration_result[1]
+        base64_registered_image2 = registration_result[2]
+
+        # Decode the base64 representation of the image
+        registered_image1 = decode_image(base64_registered_image1)
+        registered_image2 = decode_image(base64_registered_image2)
+
+        plt.subplot(121)
+        plt.imshow(registered_image1)
+        plt.subplot(122)
+        plt.imshow(registered_image2)
+        plt.show()
+
+    else:
+        registration_failure_reason = registration_result[1]
+        print('Registration failed!')
+        print(registration_failure_reason)
+
+
+if __name__ == "__main__":
+    main()
+    
