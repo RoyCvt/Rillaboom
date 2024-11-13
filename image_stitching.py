@@ -68,6 +68,23 @@ def compute_homography(matches, keypoints1, keypoints2):
     return homography_matrix
 
 
+def find_smallest_bounding_rect(image):
+    """Finds the Top-Left and Bottom-Right Coordinates of the Smallest Rectangle that Can Bound the non-black Pixels of the Image"""
+    # Convert the color-space of the image from RGB to Grayscale
+    image_gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+    # Create a binary mask of the image by setting all non-black pixels to 255, and black (padding) to 0
+    _, image_mask = cv2.threshold(src=image_gray, thresh=0, maxval=255, type=cv2.THRESH_BINARY)
+    # Find the contours of the mask
+    contours, _ = cv2.findContours(image=image_mask, mode=cv2.RETR_EXTERNAL, method=cv2.CHAIN_APPROX_SIMPLE)
+    # Keep the biggest contour of the mask (if for some reason it has more than one contour)
+    biggest_contour = sorted(list(contours), key=cv2.contourArea, reverse=True)[0]
+    # Find the top-left point of the bounding rectangle
+    top_left = np.squeeze(biggest_contour.min(axis=0)).tolist()
+    # Find the bottom-right point of the bounding rectangle
+    bottom_right = np.squeeze(biggest_contour.max(axis=0)).tolist()
+    return top_left, bottom_right
+
+
 def stitch_images(base64_image1, base64_image2):
     """
     Stitches two images together by aligning them based on matched keypoints and descriptors.
@@ -140,13 +157,14 @@ def stitch_images(base64_image1, base64_image2):
         action = "חישוב מטריצת ההמרה בין פרספקטיבות"
         homography_matrix = compute_homography(strong_matches, keypoints1, keypoints2)
 
-        # Compute the warped corners of image1 based on the homography matrix
+        # Compute the warped corners of the first image based on the homography matrix
         action = "חישוב קואורדינטות פינות התמונה הראשונה שינוי הפרספקטיבה"
-        image1_corner_coordinates = np.array([(0, 0), (image1_width, 0), (image1_width, image1_height), (0, image1_height)], dtype=np.float32).reshape((4, 1, 2))
-        warped_image1_corner_coordinates = cv2.perspectiveTransform(image1_corner_coordinates, homography_matrix).reshape((4, 2))
+        image1_corners = np.array([(0, 0), (image1_width, 0), (image1_width, image1_height), (0, image1_height)], dtype=np.float32).reshape((4, 1, 2))
+        warped_image1_corners = cv2.perspectiveTransform(image1_corners, homography_matrix).reshape((4, 2))
+
         # The top-left and bottom-right points of the rectangle bounding the warped first image
-        top_left = np.min(warped_image1_corner_coordinates, axis=0)
-        bottom_right = np.max(warped_image1_corner_coordinates, axis=0)
+        top_left = np.min(warped_image1_corners, axis=0)
+        bottom_right = np.max(warped_image1_corners, axis=0)
 
         # Calculate the padding needed so the entire warped first image fits within the second image
         action = "חישוב הריפוד הדרוש עבור התאמת התמונה הראשונה"
@@ -192,9 +210,15 @@ def stitch_images(base64_image1, base64_image2):
         action = "החלת המסכה לשילוב התמונות"
         stitched_image[warped_image1_not_padding] = warped_image1[warped_image1_not_padding]
 
+        # Find the smallest bounding rect that can bound the non-padding area of the stitched image
+        bounding_rect_top_left, bounding_rect_bottom_right = find_smallest_bounding_rect(stitched_image)
+
+        # Crop the stitched image to remove padding from its sides
+        cropped_stitched_image = stitched_image[bounding_rect_top_left[1]: bounding_rect_bottom_right[1], bounding_rect_top_left[0]: bounding_rect_bottom_right[0]]
+
         # Encode the stitched image to base64
         action = "שינוי פורמט התמונה המחוברת"
-        base64_stitched_image = encode_image(stitched_image)
+        base64_stitched_image = encode_image(cropped_stitched_image)
 
         return (True, base64_stitched_image)
 
