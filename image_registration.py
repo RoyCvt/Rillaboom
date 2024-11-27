@@ -7,6 +7,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
 
+# Remove limitation on max pixels per image
+Image.MAX_IMAGE_PIXELS = None
+
 
 def decode_image(base64_string):
     """Decode an Image from Base64 String to Numpy Array"""

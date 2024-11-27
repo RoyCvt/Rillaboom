@@ -7,6 +7,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
 
+# Remove limitation on max pixels per image
+Image.MAX_IMAGE_PIXELS = None
+
 
 def decode_image(base64_string):
     """Decode an Image from Base64 String to Numpy Array"""
@@ -77,7 +80,7 @@ def find_smallest_bounding_rect(image):
     # Find the contours of the mask
     contours, _ = cv2.findContours(image=image_mask, mode=cv2.RETR_EXTERNAL, method=cv2.CHAIN_APPROX_SIMPLE)
     # Keep the biggest contour of the mask (if for some reason it has more than one contour)
-    biggest_contour = sorted(list(contours), key=cv2.contourArea, reverse=True)[0]
+    biggest_contour = max(contours, key=cv2.contourArea)
     # Find the top-left point of the bounding rectangle
     top_left = np.squeeze(biggest_contour.min(axis=0)).tolist()
     # Find the bottom-right point of the bounding rectangle
@@ -158,7 +161,7 @@ def stitch_images(base64_image1, base64_image2):
         homography_matrix = compute_homography(strong_matches, keypoints1, keypoints2)
 
         # Compute the warped corners of the first image based on the homography matrix
-        action = "חישוב קואורדינטות פינות התמונה הראשונה שינוי הפרספקטיבה"
+        action = "חישוב קואורדינטות פינות התמונה הראשונה לאחר שינוי הפרספקטיבה"
         image1_corners = np.array([(0, 0), (image1_width, 0), (image1_width, image1_height), (0, image1_height)], dtype=np.float32).reshape((4, 1, 2))
         warped_image1_corners = cv2.perspectiveTransform(image1_corners, homography_matrix).reshape((4, 2))
 
